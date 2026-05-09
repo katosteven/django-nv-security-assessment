@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+
+<title>
+    Bandit Report
+</title>
+
+<style>
+
+html * {
+    font-family: "Arial", sans-serif;
+}
+
+pre {
+    font-family: "Monaco", monospace;
+}
+
+.bordered-box {
+    border: 1px solid black;
+    padding-top:.5em;
+    padding-bottom:.5em;
+    padding-left:1em;
+}
+
+.metrics-box {
+    font-size: 1.1em;
+    line-height: 130%;
+}
+
+.metrics-title {
+    font-size: 1.5em;
+    font-weight: 500;
+    margin-bottom: .25em;
+}
+
+.issue-description {
+    font-size: 1.3em;
+    font-weight: 500;
+}
+
+.candidate-issues {
+    margin-left: 2em;
+    border-left: solid 1px; LightGray;
+    padding-left: 5%;
+    margin-top: .2em;
+    margin-bottom: .2em;
+}
+
+.issue-block {
+    border: 1px solid LightGray;
+    padding-left: .5em;
+    padding-top: .5em;
+    padding-bottom: .5em;
+    margin-bottom: .5em;
+}
+
+.issue-sev-high {
+    background-color: Pink;
+}
+
+.issue-sev-medium {
+    background-color: NavajoWhite;
+}
+
+.issue-sev-low {
+    background-color: LightCyan;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="metrics">
+    <div class="metrics-box bordered-box">
+        <div class="metrics-title">
+            Metrics:<br>
+        </div>
+        Total lines of code: <span id="loc">1712</span><br>
+        Total lines skipped (#nosec): <span id="nosec">0</span>
+    </div>
+</div>
+
+
+
+
+<br>
+<div id="results">
+    
+<div id="issue-0">
+<div class="issue-block issue-sev-high">
+    <b>start_process_with_a_shell: </b> Starting a process with a shell, possible injection detected, security issue.<br>
+    <b>Test ID:</b> B605<br>
+    <b>Severity: </b>HIGH<br>
+    <b>Confidence: </b>HIGH<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/78.html" target="_blank">CWE-78</a><br>
+    <b>File: </b><a href="./taskManager/misc.py" target="_blank">./taskManager/misc.py</a><br>
+    <b>Line number: </b>33<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b605_start_process_with_a_shell.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b605_start_process_with_a_shell.html</a><br>
+
+<div class="code">
+<pre>
+32	    # Let&#x27;s avoid the file corruption race condition!
+33	    os.system(
+34	        &quot;mv &quot; +
+35	        uploaded_file.temporary_file_path() +
+36	        &quot; &quot; +
+37	        &quot;%s/%s&quot; %
+38	        (upload_dir_path,
+39	         title))
+40	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-1">
+<div class="issue-block issue-sev-low">
+    <b>hardcoded_password_string: </b> Possible hardcoded password: '0yxzudryd8)-%)(fz&7q-!v&cq1u6vbfoc4u7@u_&i)b@4eh^q'<br>
+    <b>Test ID:</b> B105<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/259.html" target="_blank">CWE-259</a><br>
+    <b>File: </b><a href="./taskManager/settings.py" target="_blank">./taskManager/settings.py</a><br>
+    <b>Line number: </b>24<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html</a><br>
+
+<div class="code">
+<pre>
+23	# SECURITY WARNING: keep the secret key used in production secret!
+24	SECRET_KEY = &#x27;0yxzudryd8)-%)(fz&amp;7q-!v&amp;cq1u6vbfoc4u7@u_&amp;i)b@4eh^q&#x27;
+25	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-2">
+<div class="issue-block issue-sev-medium">
+    <b>hardcoded_sql_expressions: </b> Possible SQL injection vector through string-based query construction.<br>
+    <b>Test ID:</b> B608<br>
+    <b>Severity: </b>MEDIUM<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/89.html" target="_blank">CWE-89</a><br>
+    <b>File: </b><a href="./taskManager/views.py" target="_blank">./taskManager/views.py</a><br>
+    <b>Line number: </b>184<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b608_hardcoded_sql_expressions.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b608_hardcoded_sql_expressions.html</a><br>
+
+<div class="code">
+<pre>
+183	            curs.execute(
+184	                &quot;insert into taskManager_file (&#x27;name&#x27;,&#x27;path&#x27;,&#x27;project_id&#x27;) values (&#x27;%s&#x27;,&#x27;%s&#x27;,%s)&quot; %
+185	                (name, upload_path, project_id))
+186	
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-3">
+<div class="issue-block issue-sev-low">
+    <b>hardcoded_password_string: </b> Possible hardcoded password: ''<br>
+    <b>Test ID:</b> B105<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/259.html" target="_blank">CWE-259</a><br>
+    <b>File: </b><a href="./taskManager/views.py" target="_blank">./taskManager/views.py</a><br>
+    <b>Line number: </b>751<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html</a><br>
+
+<div class="code">
+<pre>
+750	                userprofile.reset_token_expiration = timezone.now()
+751	                userprofile.reset_token = &#x27;&#x27;
+752	                userprofile.save()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+<div id="issue-4">
+<div class="issue-block issue-sev-low">
+    <b>hardcoded_password_string: </b> Possible hardcoded password: ''<br>
+    <b>Test ID:</b> B105<br>
+    <b>Severity: </b>LOW<br>
+    <b>Confidence: </b>MEDIUM<br>
+    <b>CWE: </b><a href="https://cwe.mitre.org/data/definitions/259.html" target="_blank">CWE-259</a><br>
+    <b>File: </b><a href="./taskManager/views.py" target="_blank">./taskManager/views.py</a><br>
+    <b>Line number: </b>767<br>
+    <b>More info: </b><a href="https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html" target="_blank">https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html</a><br>
+
+<div class="code">
+<pre>
+766	        userprofile.user.set_password(new_password)
+767	        userprofile.reset_token = &#x27;&#x27;
+768	        userprofile.reset_token_expiration = timezone.now()
+</pre>
+</div>
+
+
+</div>
+</div>
+
+</div>
+
+</body>
+</html>

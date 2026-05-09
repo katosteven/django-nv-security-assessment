@@ -1,0 +1,26 @@
+/* Helper classes added so CSP can drop 'unsafe-inline' for style-src (CWE-79). */
+.text-due { color: red; }
+.profile-pic-sm { max-width: 200px; }
+.profile-pic-lg { max-width: 100%; max-height: 500px; }
+
+/* Discrete progress widths so inline style="" is not needed. */
+.pct-0   { width: 0%; }
+.pct-10  { width: 10%; }
+.pct-20  { width: 20%; }
+.pct-30  { width: 30%; }
+.pct-40  { width: 40%; }
+.pct-50  { width: 50%; }
+.pct-60  { width: 60%; }
+.pct-70  { width: 70%; }
+.pct-80  { width: 80%; }
+.pct-90  { width: 90%; }
+.pct-100 { width: 100%; }
+
+/* Tutorial credentials button - was inline <style> in tutorials/base.html */
+.top-nav ul.top-menu > li > a.tutorial_creds,
+.top-nav ul.top-menu > li > a.tutorial_creds:hover,
+.top-nav ul.top-menu > li > a.tutorial_creds:focus {
+    background: #F77B6F !important;
+    color: #fff !important;
+}
+
